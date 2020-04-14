@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -58,7 +57,7 @@ func main() {
 			log.Printf("Failed to fetch weather data from OpenWeatherMap: %s", err.Error())
 			responseMessage = "Не получилось загрузить прогноз погоды. Возможно, город введен некорректно. Попробуете еще раз?"
 		} else {
-			responseMessage = fmt.Sprintf("Ожидается такая вот погодка: %s", weather.Current.Weather[0].Description)
+			responseMessage = CreateCurrentWeatherReport(weather.Current)
 		}
 
 		response := tgbotapi.NewMessage(update.Message.Chat.ID, responseMessage)
