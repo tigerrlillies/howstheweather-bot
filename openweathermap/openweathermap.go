@@ -3,6 +3,7 @@ package openweathermap
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -16,20 +17,22 @@ func New(token string) *OpenWeatherMap {
 	return &OpenWeatherMap{token: token}
 }
 
-func (owm *OpenWeatherMap) OneCallByCity(city string) (*OneCallWeatherDataResponse, error) {
+func (owm *OpenWeatherMap) OneCallByCoordinates(lat float64, lon float64) (*OneCallWeatherDataResponse, error) {
 	URL := url.URL{
 		Scheme: "https",
-		Host:   "api.openweathermap.com",
+		Host:   "api.openweathermap.org",
 		Path:   "data/2.5/onecall",
 	}
 
 	query := URL.Query()
-	query.Add("appid", owm.token)
-	query.Add("q", city)
-	query.Add("units", "C")
 	query.Add("lang", "ru")
+	query.Add("appid", owm.token)
+	query.Add("lat", fmt.Sprintf("%.1f", lat))
+	query.Add("lon", fmt.Sprintf("%.1f", lon))
+	query.Add("units", "metric")
 
 	URL.RawQuery = query.Encode()
+
 	resp, err := http.Get(URL.String())
 	if err != nil {
 		return nil, err

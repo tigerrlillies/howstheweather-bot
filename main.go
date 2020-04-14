@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 
-	"github.com/Syfaro/telegram-bot-api"
-	"github.com/briandowns/openweathermap"
+	tgbotapi "github.com/Syfaro/telegram-bot-api"
+
+	"github.com/tigerrlillies/howstheweather/openweathermap"
 )
 
 const (
@@ -30,23 +33,32 @@ func main() {
 		log.Fatalf("Failed to initialize update channel: %s", err.Error())
 	}
 
-	weather, err := openweathermap.NewCurrent("C", "ru", os.Getenv(OpenWeatherMapAPITokenEnv))
-	if err != nil {
-		log.Fatalf("Unable to connect to OpenWeatherAPI: %s", err.Error())
-	}
+	owm := openweathermap.New(os.Getenv(OpenWeatherMapAPITokenEnv))
 
 	log.Printf("Started listening for updates")
 	for update := range updateChan {
 		log.Printf("Update received: command %s, text %s, chat ID %d",
 			update.Message.Command(), update.Message.Text, update.Message.Chat.ID)
 
+		coords := strings.Split(update.Message.Text, " ")
+		lat, err := strconv.ParseFloat(coords[0], 32)
+		if err != nil {
+			log.Println("Unable to parse latitude due to", err.Error())
+			continue
+		}
+		lon, err := strconv.ParseFloat(coords[1], 32)
+		if err != nil {
+			log.Println("Unable to parse longitude due to", err.Error())
+			continue
+		}
+
 		var responseMessage string
-		err := weather.CurrentByName(update.Message.Text)
+		weather, err := owm.OneCallByCoordinates(lat, lon)
 		if err != nil {
 			log.Printf("Failed to fetch weather data from OpenWeatherMap: %s", err.Error())
 			responseMessage = "Не получилось загрузить прогноз погоды. Возможно, город введен некорректно. Попробуете еще раз?"
 		} else {
-			responseMessage = fmt.Sprintf("Ожидается такая вот погодка: %s", weather.Weather[0].Description)
+			responseMessage = fmt.Sprintf("Ожидается такая вот погодка: %s", weather.Current.Weather[0].Description)
 		}
 
 		response := tgbotapi.NewMessage(update.Message.Chat.ID, responseMessage)
