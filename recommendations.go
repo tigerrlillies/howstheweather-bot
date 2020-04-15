@@ -26,7 +26,12 @@ func GetClothingRecommendations(weather *openweathermap.Daily) string {
 	for _, c := range categories[:len(categories)-1] {
 		recommendation += recommend(c) + ", "
 	}
-	recommendation += "а еще " + recommend(categories[len(categories)-1]) + "."
+
+	if len(categories) > 1 {
+		recommendation += "а еще "
+	}
+
+	recommendation += recommend(categories[len(categories)-1]) + "."
 
 	return recommendation
 }
