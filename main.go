@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	TelegramAPITokenEnv = "TELEGRAM_API_TOKEN"
+	TelegramAPITokenEnv       = "TELEGRAM_API_TOKEN"
 	OpenWeatherMapAPITokenEnv = "OPENWEATHERMAP_API_TOKEN"
 )
 
@@ -34,37 +34,20 @@ func main() {
 
 	log.Printf("Started listening for updates")
 	for update := range updateChan {
-		log.Printf("Update received: command %s, text %s, chat ID %d",
-			update.Message.Command(), update.Message.Text, update.Message.Chat.ID)
+		command := update.Message.Command()
+		text := update.Message.Text
+		chatID := update.Message.Chat.ID
 
-		city := update.Message.Text
+		log.Printf("Update received: command [%s], text [%s], chat ID [%d]",
+			command, text, chatID)
 
-		var response string
-
-		lat, lon, err := owm.GetCityCoordinates(city)
-		if err != nil {
-			log.Println("Failed to get city coordinates: ", err.Error())
-
-			switch err {
-			case openweathermap.ErrCityNotFound:
-				response = "Такой город не найден"
-			default:
-				response = "Не получилось загрузить прогноз погоды. Попробуете еще раз?"
-			}
-
-		} else {
-			weather, err := owm.OneCallByCoordinates(lat, lon)
-			if err != nil {
-				log.Printf("Failed to fetch weather data from OpenWeatherMap: %s", err.Error())
-				response = "Не получилось загрузить прогноз погоды. Попробуете еще раз?"
-			} else {
-				response = CreateForecastReport(weather.Daily[0]) + "\n" + GetClothingRecommendations(weather.Current)
-			}
+		if command != "" {
+			HandleCommand(command, chatID, bot)
+			continue
 		}
 
-		_, err = bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, response))
-		if err != nil {
-			log.Printf("Failed to send response: %s", err.Error())
+		if text != "" {
+			HandleText(text, chatID, owm, bot)
 		}
 	}
 
