@@ -9,12 +9,70 @@ import (
 	"net/url"
 )
 
+var (
+	ErrCityNotFound = errors.New("city not found")
+)
+
 type OpenWeatherMap struct {
 	token string
 }
 
 func New(token string) *OpenWeatherMap {
 	return &OpenWeatherMap{token: token}
+}
+
+func (owm *OpenWeatherMap) GetCityCoordinates(city string) (lat float64, lon float64, err error) {
+	URL := url.URL{
+		Scheme: "https",
+		Host:   "api.openweathermap.org",
+		Path:   "data/2.5/weather",
+	}
+
+	query := URL.Query()
+	query.Add("q", city)
+	query.Add("appid", owm.token)
+
+	URL.RawQuery = query.Encode()
+
+	resp, err := http.Get(URL.String())
+	if err != nil {
+		return 0., 0., err
+	}
+	defer resp.Body.Close()
+
+	buff, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return 0., 0., errors.New("failed to read response body")
+	}
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		if resp.StatusCode == http.StatusNotFound {
+			return 0, 0, ErrCityNotFound
+		}
+
+		var errorResponse ErrorResponse
+		if err := json.Unmarshal(buff, &errorResponse); err != nil {
+			return 0., 0., errors.New("unable to unmarshal error response")
+		}
+
+		return 0., 0., errors.New(errorResponse.Message)
+	}
+
+	type Coordinates struct {
+		Lat float64 `json:"lat"`
+		Lon float64 `json:"lon"`
+	}
+
+	type CurrentWeatherResponse struct {
+		Coord Coordinates `json:"coord"`
+	}
+
+	var weatherResponse CurrentWeatherResponse
+	if err := json.Unmarshal(buff, &weatherResponse); err != nil {
+		return 0., 0., errors.New("unable to unmarshal weather response")
+	}
+
+	return weatherResponse.Coord.Lat, weatherResponse.Coord.Lon, nil
 }
 
 func (owm *OpenWeatherMap) OneCallByCoordinates(lat float64, lon float64) (*OneCallWeatherDataResponse, error) {
@@ -50,7 +108,6 @@ func (owm *OpenWeatherMap) OneCallByCoordinates(lat float64, lon float64) (*OneC
 			return nil, errors.New("unable to unmarshal error response")
 		}
 
-		// todo determine error type here
 		return nil, errors.New("error response")
 	}
 
